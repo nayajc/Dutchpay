@@ -216,11 +216,22 @@ function renderSettlementResult() {
   }
   // uid → displayName/email 매핑
   const uidToName = {};
+  const uidToCurrency = {};
   allUsers.forEach(u => { uidToName[u.uid] = u.displayName || u.email; });
+  // 각 정산 결과에서 통화 추출 (history에서 from→to의 첫 내역의 통화 사용)
+  function getCurrency(from, to) {
+    const found = history.find(item => {
+      if (!item.paidStatus) return false;
+      const uids = Object.keys(item.paidStatus);
+      return uids.includes(from) && uids.includes(to);
+    });
+    return found ? found.currency : '';
+  }
   result.forEach(r => {
     const div = document.createElement('div');
     div.style.marginBottom = '0.4rem';
-    div.innerHTML = `<span class="emoji">🤝</span> <b>${uidToName[r.from] || r.from}</b> → <b>${uidToName[r.to] || r.to}</b> : <b>${r.amount.toLocaleString(undefined, {maximumFractionDigits:2})}</b> 받기`;
+    const currency = getCurrency(r.from, r.to);
+    div.innerHTML = `<span class="emoji">🤝</span> <b>${uidToName[r.from] || r.from}</b> → <b>${uidToName[r.to] || r.to}</b> : <b>${r.amount.toLocaleString(undefined, {maximumFractionDigits:2})} ${currency}</b> 받기`;
     resultList.appendChild(div);
   });
 }
@@ -268,16 +279,18 @@ function renderMyHistory() {
     const paidStatus = item.paidStatus || {};
     const unpaid = (item.participants || []).filter(part => !paidStatus[part.uid]);
     const paid = (item.participants || []).filter(part => paidStatus[part.uid]);
-    const unpaidList = unpaid.length ? unpaid.map(part => `<span style='color:#e74c3c;margin-right:0.7em;'>${part.displayName || part.email} <button class='remove-participant-btn' data-id='${item.id}' data-uid='${part.uid}' style='font-size:0.9em;color:#e74c3c;background:none;border:none;cursor:pointer;'>삭제</button></span>`).join('') : '<span style="color:green;">없음</span>';
+    const share = item.participants && item.participants.length ? (parseFloat(item.amount) / item.participants.length) : 0;
+    // 미납자: 이름(미납금액)
+    const unpaidList = unpaid.length ? unpaid.map(part => `<span style='color:#e74c3c;margin-right:0.7em;'>${part.displayName || part.email} <b>(${share.toLocaleString(undefined, {maximumFractionDigits:2})} ${currency})</b> <button class='remove-participant-btn' data-id='${item.id}' data-uid='${part.uid}' style='font-size:0.9em;color:#e74c3c;background:none;border:none;cursor:pointer;'>삭제</button></span>`).join('') : '<span style="color:green;">없음</span>';
     const paidList = paid.length ? paid.map(part => `<span style='color:green;margin-right:0.7em;'>${part.displayName || part.email} <button class='remove-participant-btn' data-id='${item.id}' data-uid='${part.uid}' style='font-size:0.9em;color:#e74c3c;background:none;border:none;cursor:pointer;'>삭제</button></span>`).join('') : '<span style="color:#e74c3c;">없음</span>';
     const canArchive = unpaid.length === 0;
-    // 참가자 추가 버튼
+    // 참가자 추가 버튼(항상 날짜/장소 옆에)
     const notIn = allUsers.filter(u => !(item.participants || []).some(p => p.uid === u.uid));
-    const addBtn = notIn.length ? `<button class='add-participant-btn' data-id='${item.id}'>참가자 추가</button>` : '';
+    const addBtn = `<button class='add-participant-btn' data-id='${item.id}' style='margin-left:0.5em;'>참가자 추가</button>`;
     return `<div class='history-item' style='font-size:1.05em;'>
-      <b>${date}</b> | <b>${place}</b><br/>
-      <span style='color:#0f75bc;'>${amount} ${currency}</span><br/>
-      <span>참가자: ${participants}</span> ${addBtn}<br/>
+      <b>${date}</b> | <b>${place}</b>${addBtn}<br/>
+      <span style='color:#0f75bc;'><a href='#' style='color:#0f75bc;text-decoration:underline;'>${amount} ${currency}</a></span><br/>
+      <span>참가자: ${participants}</span><br/>
       <span>미납자: ${unpaidList}</span><br/>
       <span>납부완료자: ${paidList}</span><br/>
       ${canArchive ? `<button class='archive-btn' data-id='${item.id}'>보관</button>` : ''}
@@ -296,19 +309,37 @@ function renderMyHistory() {
       await updateSettlementParticipants(id, newParticipants, newPaidStatus);
     });
   });
-  // 참가자 추가 이벤트
+  // 참가자 추가 이벤트 (select로 스크롤다운)
   document.querySelectorAll('.add-participant-btn').forEach(btn => {
     btn.addEventListener('click', async e => {
       const id = btn.getAttribute('data-id');
       const item = history.find(h => h.id === id);
       if (!item) return;
       const notIn = allUsers.filter(u => !(item.participants || []).some(p => p.uid === u.uid));
-      const name = prompt('추가할 참가자 이름/이메일을 선택하세요:\n' + notIn.map(u => `${u.displayName || u.email}`).join('\n'));
-      const user = notIn.find(u => (u.displayName || u.email) === name);
-      if (!user) return alert('선택된 참가자가 없습니다.');
-      const newParticipants = [...(item.participants || []), { uid: user.uid, email: user.email, displayName: user.displayName }];
-      const newPaidStatus = { ...item.paidStatus, [user.uid]: false };
-      await updateSettlementParticipants(id, newParticipants, newPaidStatus);
+      if (notIn.length === 0) return alert('추가할 수 있는 회원이 없습니다.');
+      // select로 선택
+      const select = document.createElement('select');
+      select.style.fontSize = '1em';
+      notIn.forEach(u => {
+        const opt = document.createElement('option');
+        opt.value = u.uid;
+        opt.textContent = u.displayName || u.email;
+        select.appendChild(opt);
+      });
+      const ok = confirm('참가자를 추가하시겠습니까?\n(확인 후 선택창이 나타납니다)');
+      if (!ok) return;
+      // 모달 없이 prompt 대체: select를 body에 임시로 추가
+      document.body.appendChild(select);
+      select.focus();
+      select.size = Math.min(6, notIn.length);
+      select.addEventListener('change', async () => {
+        const user = notIn.find(u => u.uid === select.value);
+        if (!user) return alert('선택된 참가자가 없습니다.');
+        const newParticipants = [...(item.participants || []), { uid: user.uid, email: user.email, displayName: user.displayName }];
+        const newPaidStatus = { ...item.paidStatus, [user.uid]: false };
+        await updateSettlementParticipants(id, newParticipants, newPaidStatus);
+        document.body.removeChild(select);
+      });
     });
   });
   // 보관 버튼 이벤트
