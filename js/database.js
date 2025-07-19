@@ -12,7 +12,7 @@ export function addSettlement(data) {
   const listRef = ref(db, `settlements/${user.uid}`);
   // 참가자별 paidStatus 초기화
   const paidStatus = {};
-  (data.participants || []).forEach(p => { paidStatus[p] = false; });
+  (data.participants || []).forEach(p => { paidStatus[p.uid] = false; });
   return push(listRef, { ...data, paidStatus });
 }
 
