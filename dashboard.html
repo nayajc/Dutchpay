@@ -50,7 +50,7 @@
       <label for="date">날짜</label>
       <input type="date" id="date" required style="font-size:1.1em;" />
       <label>참가자</label>
-      <div id="participants-list" style="display:flex;flex-wrap:wrap;gap:0.7rem 1.2rem;"></div>
+      <div id="participants-list" style="display:flex;flex-wrap:wrap;gap:0.7rem 1.2rem;max-height:120px;overflow-y:auto;"></div>
       <button type="submit" class="settle-btn">정산 추가</button>
     </form>
     <div class="section-title">정산 내역 <span class="emoji">📋</span></div>
@@ -59,6 +59,9 @@
     </div>
     <div class="section-title">내가 낸 내역 <span class="emoji">🧾</span></div>
     <div class="history-list" id="my-history-list"></div>
+    <!-- 참가자 추가/삭제 버튼은 각 내역 항목에 js에서 동적으로 추가됨 -->
+    <div class="section-title">보관함 <span class="emoji">📦</span></div>
+    <div class="history-list" id="archive-list"></div>
   </div>
   <script type="module" src="js/main.js"></script>
 </body>

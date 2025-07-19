@@ -1,6 +1,6 @@
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
 import { app } from "./firebase-config.js";
-import { addSettlement, onSettlementsChanged, updateSettlementPaid, getAllUsers } from "./database.js";
+import { addSettlement, onSettlementsChanged, updateSettlementPaid, getAllUsers, archiveSettlement, onArchivedSettlementsChanged, updateSettlementParticipants } from "./database.js";
 
 const auth = getAuth(app);
 
@@ -214,12 +214,41 @@ function renderSettlementResult() {
     resultList.innerHTML = '<span style="color:#888;">모든 미납 정산이 완료되었습니다!</span>';
     return;
   }
+  // uid → displayName/email 매핑
+  const uidToName = {};
+  allUsers.forEach(u => { uidToName[u.uid] = u.displayName || u.email; });
   result.forEach(r => {
     const div = document.createElement('div');
     div.style.marginBottom = '0.4rem';
-    div.innerHTML = `<span class="emoji">🤝</span> <b>${r.from}</b> → <b>${r.to}</b> : <b>${r.amount.toLocaleString(undefined, {maximumFractionDigits:2})}</b> 받기`;
+    div.innerHTML = `<span class="emoji">🤝</span> <b>${uidToName[r.from] || r.from}</b> → <b>${uidToName[r.to] || r.to}</b> : <b>${r.amount.toLocaleString(undefined, {maximumFractionDigits:2})}</b> 받기`;
     resultList.appendChild(div);
   });
+}
+
+let archiveHistory = [];
+const archiveList = document.getElementById('archive-list');
+onArchivedSettlementsChanged(arr => {
+  archiveHistory = arr.reverse();
+  renderArchiveList();
+});
+function renderArchiveList() {
+  if (!archiveList) return;
+  if (archiveHistory.length === 0) {
+    archiveList.innerHTML = '<span style="color:#888;">보관된 내역이 없습니다.</span>';
+    return;
+  }
+  archiveList.innerHTML = archiveHistory.map(item => {
+    const date = item.date || '-';
+    const place = item.place || '-';
+    const amount = item.amount || '-';
+    const currency = item.currency || '';
+    const participants = (item.participants || []).map(p => p.displayName || p.email).join(', ');
+    return `<div class='history-item' style='font-size:1.05em;'>
+      <b>${date}</b> | <b>${place}</b><br/>
+      <span style='color:#0f75bc;'>${amount} ${currency}</span><br/>
+      <span>참가자: ${participants}</span>
+    </div>`;
+  }).join('');
 }
 
 function renderMyHistory() {
@@ -237,14 +266,61 @@ function renderMyHistory() {
     const currency = item.currency || '';
     const participants = (item.participants || []).map(p => p.displayName || p.email).join(', ');
     const paidStatus = item.paidStatus || {};
-    const paidList = (item.participants || []).map(part => `<span style='margin-right:0.7em;'>${part.displayName || part.email}: <b style='color:${paidStatus[part.uid] ? "green" : "#e74c3c"}'>${paidStatus[part.uid] ? "완료" : "미납"}</b></span>`).join('');
+    const unpaid = (item.participants || []).filter(part => !paidStatus[part.uid]);
+    const paid = (item.participants || []).filter(part => paidStatus[part.uid]);
+    const unpaidList = unpaid.length ? unpaid.map(part => `<span style='color:#e74c3c;margin-right:0.7em;'>${part.displayName || part.email} <button class='remove-participant-btn' data-id='${item.id}' data-uid='${part.uid}' style='font-size:0.9em;color:#e74c3c;background:none;border:none;cursor:pointer;'>삭제</button></span>`).join('') : '<span style="color:green;">없음</span>';
+    const paidList = paid.length ? paid.map(part => `<span style='color:green;margin-right:0.7em;'>${part.displayName || part.email} <button class='remove-participant-btn' data-id='${item.id}' data-uid='${part.uid}' style='font-size:0.9em;color:#e74c3c;background:none;border:none;cursor:pointer;'>삭제</button></span>`).join('') : '<span style="color:#e74c3c;">없음</span>';
+    const canArchive = unpaid.length === 0;
+    // 참가자 추가 버튼
+    const notIn = allUsers.filter(u => !(item.participants || []).some(p => p.uid === u.uid));
+    const addBtn = notIn.length ? `<button class='add-participant-btn' data-id='${item.id}'>참가자 추가</button>` : '';
     return `<div class='history-item' style='font-size:1.05em;'>
       <b>${date}</b> | <b>${place}</b><br/>
       <span style='color:#0f75bc;'>${amount} ${currency}</span><br/>
-      <span>참가자: ${participants}</span><br/>
-      <span>지불 현황: ${paidList}</span>
+      <span>참가자: ${participants}</span> ${addBtn}<br/>
+      <span>미납자: ${unpaidList}</span><br/>
+      <span>납부완료자: ${paidList}</span><br/>
+      ${canArchive ? `<button class='archive-btn' data-id='${item.id}'>보관</button>` : ''}
     </div>`;
   }).join('');
+  // 참가자 삭제 이벤트
+  document.querySelectorAll('.remove-participant-btn').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      const id = btn.getAttribute('data-id');
+      const uid = btn.getAttribute('data-uid');
+      const item = history.find(h => h.id === id);
+      if (!item) return;
+      const newParticipants = (item.participants || []).filter(p => p.uid !== uid);
+      const newPaidStatus = { ...item.paidStatus };
+      delete newPaidStatus[uid];
+      await updateSettlementParticipants(id, newParticipants, newPaidStatus);
+    });
+  });
+  // 참가자 추가 이벤트
+  document.querySelectorAll('.add-participant-btn').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      const id = btn.getAttribute('data-id');
+      const item = history.find(h => h.id === id);
+      if (!item) return;
+      const notIn = allUsers.filter(u => !(item.participants || []).some(p => p.uid === u.uid));
+      const name = prompt('추가할 참가자 이름/이메일을 선택하세요:\n' + notIn.map(u => `${u.displayName || u.email}`).join('\n'));
+      const user = notIn.find(u => (u.displayName || u.email) === name);
+      if (!user) return alert('선택된 참가자가 없습니다.');
+      const newParticipants = [...(item.participants || []), { uid: user.uid, email: user.email, displayName: user.displayName }];
+      const newPaidStatus = { ...item.paidStatus, [user.uid]: false };
+      await updateSettlementParticipants(id, newParticipants, newPaidStatus);
+    });
+  });
+  // 보관 버튼 이벤트
+  document.querySelectorAll('.archive-btn').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      const id = btn.getAttribute('data-id');
+      const item = history.find(h => h.id === id);
+      if (!item) return;
+      await archiveSettlement(id, item);
+      // 보관 후에는 실시간 반영(onSettlementsChanged)으로 내역에서 사라짐
+    });
+  });
 }
 
 function renderHistory() {
