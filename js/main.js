@@ -58,7 +58,7 @@ let allUsers = [];
 function renderParticipantsList() {
   participantsListDiv.innerHTML = allUsers.map(u => {
     const isMe = (u.email === currentUserEmail);
-    return `<label style='font-size:1.1em;margin-right:1em;'><input type='checkbox' class='participant-check' value='${u.displayName || u.email}' style='margin-right:0.4em;' ${isMe ? 'checked disabled' : ''}/> ${u.displayName || u.email}</label>`;
+    return `<label style='font-size:1.1em;margin-right:1em;'><input type='checkbox' class='participant-check' value='${u.email}' style='margin-right:0.4em;' ${isMe ? 'checked disabled' : ''}/> ${u.displayName || u.email}</label>`;
   }).join('');
 }
 // 4. 지불자(본인) 자동 세팅
@@ -294,7 +294,9 @@ if (form) {
     const currency = document.getElementById('currency').value;
     const place = document.getElementById('place').value.trim();
     const date = document.getElementById('date').value;
-    const participants = Array.from(document.querySelectorAll('.participant-check:checked')).map(chk => chk.value);
+    let participants = Array.from(document.querySelectorAll('.participant-check:checked')).map(chk => chk.value);
+    // 본인 이메일이 반드시 포함되도록 보장
+    if (!participants.includes(currentUserEmail)) participants.push(currentUserEmail);
     if (!payer) return alert('지불자 정보가 없습니다.');
     if (!amount) return alert('금액을 입력하세요.');
     if (!currency) return alert('통화를 선택하세요.');
