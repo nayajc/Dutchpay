@@ -216,9 +216,7 @@ function renderSettlementResult() {
   }
   // uid → displayName/email 매핑
   const uidToName = {};
-  const uidToCurrency = {};
   allUsers.forEach(u => { uidToName[u.uid] = u.displayName || u.email; });
-  // 각 정산 결과에서 통화 추출 (history에서 from→to의 첫 내역의 통화 사용)
   function getCurrency(from, to) {
     const found = history.find(item => {
       if (!item.paidStatus) return false;
@@ -231,7 +229,8 @@ function renderSettlementResult() {
     const div = document.createElement('div');
     div.style.marginBottom = '0.4rem';
     const currency = getCurrency(r.from, r.to);
-    div.innerHTML = `<span class="emoji">🤝</span> <b>${uidToName[r.from] || r.from}</b> → <b>${uidToName[r.to] || r.to}</b> : <b>${r.amount.toLocaleString(undefined, {maximumFractionDigits:2})} ${currency}</b> 받기`;
+    // 받아야 하는 사람 이름 : 금액 통화
+    div.innerHTML = `<b>${uidToName[r.to] || r.to}</b> : <b>${r.amount.toLocaleString(undefined, {maximumFractionDigits:2})} ${currency}</b> 받기`;
     resultList.appendChild(div);
   });
 }
