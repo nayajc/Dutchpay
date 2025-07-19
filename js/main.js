@@ -120,6 +120,17 @@ const dashboard = document.querySelector('.dashboard-container');
 dashboard.appendChild(resultSection);
 dashboard.appendChild(resultList);
 
+// 내가 내야 할 내역 표시 영역 추가
+let paySection = document.createElement('div');
+paySection.className = 'section-title';
+paySection.id = 'pay-result-title';
+paySection.innerHTML = '내가 내야 할 내역 💸';
+let payList = document.createElement('div');
+payList.id = 'pay-result-list';
+payList.style.marginTop = '0.7rem';
+dashboard.appendChild(paySection);
+dashboard.appendChild(payList);
+
 // 다국어 지원
 const i18n = {
   ko: {
@@ -256,6 +267,40 @@ async function renderSettlementResult() {
   });
   Object.entries(usdMap).forEach(([name, usd]) => {
     resultList.innerHTML += `<b>${name}</b> : <b>${usd.toLocaleString(undefined, {maximumFractionDigits:2})} USD</b> 받기<br/>`;
+  });
+}
+
+async function renderPayResult() {
+  const result = calculateSettlementResult();
+  payList.innerHTML = '';
+  if (result.length === 0) {
+    payList.innerHTML = '<span style="color:#888;">내야 할 내역이 없습니다.</span>';
+    return;
+  }
+  const uidToName = {};
+  allUsers.forEach(u => { uidToName[u.uid] = u.displayName || u.email; });
+  const rates = await getRatesToUSD();
+  // 내가 내야 할 내역만 추출
+  const myUid = allUsers.find(u => u.email === currentUserEmail)?.uid;
+  const myPays = result.filter(r => r.from === myUid);
+  if (myPays.length === 0) {
+    payList.innerHTML = '<span style="color:#888;">내야 할 내역이 없습니다.</span>';
+    return;
+  }
+  myPays.forEach(r => {
+    const currency = (() => {
+      const found = history.find(item => {
+        if (!item.paidStatus) return false;
+        const uids = Object.keys(item.paidStatus);
+        return uids.includes(r.from) && uids.includes(r.to);
+      });
+      return found ? found.currency : 'USD';
+    })();
+    let usd = parseFloat(r.amount);
+    if (currency !== 'USD' && rates[currency]) {
+      usd = usd / rates[currency];
+    }
+    payList.innerHTML += `<b>${uidToName[r.to] || r.to}</b>에게 <b>${usd.toLocaleString(undefined, {maximumFractionDigits:2})} USD</b> 내야 함`;
   });
 }
 
@@ -434,6 +479,7 @@ function renderHistory() {
   });
   renderMyHistory();
   renderSettlementResult(); // 비동기 호출
+  renderPayResult(); // 비동기 호출
 }
 
 if (form) {
