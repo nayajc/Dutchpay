@@ -1,5 +1,6 @@
 // Firebase Auth 관련 기능
 import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+import { getDatabase, ref, set, get } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js";
 import { app } from "./firebase-config.js";
 
 const auth = getAuth(app);
@@ -10,7 +11,20 @@ if (btnGoogle) {
   btnGoogle.addEventListener('click', async () => {
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      // DB에 회원 등록
+      const db = getDatabase(app);
+      const userRef = ref(db, 'users/' + user.uid);
+      const snap = await get(userRef);
+      if (!snap.exists()) {
+        await set(userRef, {
+          email: user.email,
+          displayName: user.displayName || '',
+          uid: user.uid
+        });
+        alert('멤버가입을 환영합니다.');
+      }
       window.location.href = 'dashboard.html';
     } catch (e) {
       alert('Google 로그인 실패: ' + e.message);
