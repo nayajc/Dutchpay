@@ -51,3 +51,16 @@ export function updateSettlementPaid(settlementId, participant, paid) {
   const paidRef = ref(db, `settlements/${user.uid}/${settlementId}/paidStatus/${participant}`);
   return update(paidRef, { '.value': paid });
 }
+
+// 모든 회원(유저) 목록 불러오기
+export function getAllUsers(cb) {
+  const db = getDatabase(app);
+  const usersRef = ref(db, 'users');
+  get(usersRef).then(snapshot => {
+    const arr = [];
+    snapshot.forEach(child => {
+      arr.push({ uid: child.key, ...child.val() });
+    });
+    cb(arr);
+  });
+}

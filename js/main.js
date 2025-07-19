@@ -1,6 +1,6 @@
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
 import { app } from "./firebase-config.js";
-import { addSettlement, onSettlementsChanged, updateSettlementPaid } from "./database.js";
+import { addSettlement, onSettlementsChanged, updateSettlementPaid, getAllUsers } from "./database.js";
 
 const auth = getAuth(app);
 
@@ -54,8 +54,12 @@ currencyListDiv && currencyListDiv.addEventListener('click', e => {
 });
 // 3. 참가자 선택
 const participantsListDiv = document.getElementById('participants-list');
+let allUsers = [];
 function renderParticipantsList() {
-  participantsListDiv.innerHTML = members.map(m => `<label style='font-size:1.1em;margin-right:1em;'><input type='checkbox' class='participant-check' value='${m}' style='margin-right:0.4em;'/>${m}</label>`).join('');
+  participantsListDiv.innerHTML = allUsers.map(u => {
+    const isMe = (u.email === currentUserEmail);
+    return `<label style='font-size:1.1em;margin-right:1em;'><input type='checkbox' class='participant-check' value='${u.displayName || u.email}' style='margin-right:0.4em;' ${isMe ? 'checked disabled' : ''}/> ${u.displayName || u.email}</label>`;
+  }).join('');
 }
 // 4. 지불자(본인) 자동 세팅
 function setPayer(user) {
@@ -71,6 +75,11 @@ onAuthStateChanged(auth, user => {
     document.getElementById('user-info').textContent = `👤 ${user.displayName || user.email}`;
     currentUserEmail = user.email;
     setPayer(user);
+    // DB에서 전체 회원 불러오기
+    getAllUsers(users => {
+      allUsers = users;
+      renderParticipantsList();
+    });
     // DB 연동: 내역 실시간 반영
     onSettlementsChanged(arr => {
       history = arr.reverse(); // 최신순
@@ -262,7 +271,7 @@ if (form) {
     if (!amount) return alert('금액을 입력하세요.');
     if (!currency) return alert('통화를 선택하세요.');
     if (!participants.length) return alert('참가자를 1명 이상 선택하세요.');
-    if (!participants.every(p => members.includes(p))) return alert('참가자는 멤버 중에서만 선택 가능합니다.');
+    if (!participants.every(p => allUsers.some(u => u.email === p))) return alert('참가자는 멤버 중에서만 선택 가능합니다.');
     try {
       await addSettlement({ payer, amount, currency, participants, createdAt: Date.now() });
       form.reset();
