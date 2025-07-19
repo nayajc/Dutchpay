@@ -221,6 +221,31 @@ function renderSettlementResult() {
   });
 }
 
+function renderMyHistory() {
+  const myHistoryList = document.getElementById('my-history-list');
+  if (!myHistoryList) return;
+  const mySettles = history.filter(item => item.payer === (auth.currentUser.displayName || auth.currentUser.email));
+  if (mySettles.length === 0) {
+    myHistoryList.innerHTML = '<span style="color:#888;">본인이 낸 내역이 없습니다.</span>';
+    return;
+  }
+  myHistoryList.innerHTML = mySettles.map(item => {
+    const date = item.date || '-';
+    const place = item.place || '-';
+    const amount = item.amount || '-';
+    const currency = item.currency || '';
+    const participants = (item.participants || []).join(', ');
+    const paidStatus = item.paidStatus || {};
+    const paidList = Object.entries(paidStatus).map(([name, paid]) => `<span style='margin-right:0.7em;'>${name}: <b style='color:${paid ? "green" : "#e74c3c"}'>${paid ? "완료" : "미납"}</b></span>`).join('');
+    return `<div class='history-item' style='font-size:1.05em;'>
+      <b>${date}</b> | <b>${place}</b><br/>
+      <span style='color:#0f75bc;'>${amount} ${currency}</span><br/>
+      <span>참가자: ${participants}</span><br/>
+      <span>지불 현황: ${paidList}</span>
+    </div>`;
+  }).join('');
+}
+
 function renderHistory() {
   historyList.innerHTML = '';
   history.forEach(item => {
@@ -258,6 +283,7 @@ function renderHistory() {
     });
   });
   renderSettlementResult();
+  renderMyHistory();
 }
 
 if (form) {
