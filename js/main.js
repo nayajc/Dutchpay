@@ -52,13 +52,13 @@ currencyListDiv && currencyListDiv.addEventListener('click', e => {
     e.target.closest('.currency-btn').style.borderColor = '#0f75bc';
   }
 });
-// 3. 참가자 선택
+// 3. 참가자 선택: uid/email/displayName 구조로 저장
 const participantsListDiv = document.getElementById('participants-list');
 let allUsers = [];
 function renderParticipantsList() {
   participantsListDiv.innerHTML = allUsers.map(u => {
     const isMe = (u.email === currentUserEmail);
-    return `<label style='font-size:1.1em;margin-right:1em;'><input type='checkbox' class='participant-check' value='${u.email}' style='margin-right:0.4em;' ${isMe ? 'checked disabled' : ''}/> ${u.displayName || u.email}</label>`;
+    return `<label style='font-size:1.1em;margin-right:1em;'><input type='checkbox' class='participant-check' value='${u.uid}' style='margin-right:0.4em;' ${isMe ? 'checked disabled' : ''}/> ${u.displayName || u.email}</label>`;
   }).join('');
 }
 // 4. 지불자(본인) 자동 세팅
@@ -177,13 +177,13 @@ function calculateSettlementResult() {
     const n = item.participants.length;
     const share = amount / n;
     item.participants.forEach(part => {
-      if (!item.paidStatus[part]) {
+      if (!item.paidStatus[part.uid]) {
         // 미납자만 계산
-        balance[part] = (balance[part] || 0) - share;
+        balance[part.uid] = (balance[part.uid] || 0) - share;
       }
     });
     // 지불자는 전체 금액만큼 받음
-    balance[item.payer] = (balance[item.payer] || 0) + amount;
+    balance[item.payer.uid] = (balance[item.payer.uid] || 0) + amount;
   });
   // 정산 매칭(누가 누구에게 얼마)
   // 단순히 balance > 0(받을 사람), < 0(줄 사람)로 분리
@@ -224,7 +224,7 @@ function renderSettlementResult() {
 function renderMyHistory() {
   const myHistoryList = document.getElementById('my-history-list');
   if (!myHistoryList) return;
-  const mySettles = history.filter(item => item.payer === (auth.currentUser.displayName || auth.currentUser.email));
+  const mySettles = history.filter(item => item.payer && item.payer.email === currentUserEmail);
   if (mySettles.length === 0) {
     myHistoryList.innerHTML = '<span style="color:#888;">본인이 낸 내역이 없습니다.</span>';
     return;
@@ -234,9 +234,9 @@ function renderMyHistory() {
     const place = item.place || '-';
     const amount = item.amount || '-';
     const currency = item.currency || '';
-    const participants = (item.participants || []).join(', ');
+    const participants = (item.participants || []).map(p => p.displayName || p.email).join(', ');
     const paidStatus = item.paidStatus || {};
-    const paidList = Object.entries(paidStatus).map(([name, paid]) => `<span style='margin-right:0.7em;'>${name}: <b style='color:${paid ? "green" : "#e74c3c"}'>${paid ? "완료" : "미납"}</b></span>`).join('');
+    const paidList = (item.participants || []).map(part => `<span style='margin-right:0.7em;'>${part.displayName || part.email}: <b style='color:${paidStatus[part.uid] ? "green" : "#e74c3c"}'>${paidStatus[part.uid] ? "완료" : "미납"}</b></span>`).join('');
     return `<div class='history-item' style='font-size:1.05em;'>
       <b>${date}</b> | <b>${place}</b><br/>
       <span style='color:#0f75bc;'>${amount} ${currency}</span><br/>
@@ -251,32 +251,30 @@ function renderHistory() {
   history.forEach(item => {
     const div = document.createElement('div');
     div.className = 'history-item';
-    let html = `<span class="emoji">💳</span> <b>${item.payer}</b>${i18n[lang].user} <b>${item.amount} ${item.currency}</b> ${i18n[lang].paid}<br><span style="font-size:0.97em;">${i18n[lang].participantsList}: `;
-    html += item.participants.map(part => {
-      const paid = item.paidStatus && item.paidStatus[part];
-      // 본인(로그인 사용자)이 참가자일 때만 버튼 활성화
-      if (currentUserEmail && part === currentUserEmail) {
+    let html = `<span class="emoji">💳</span> <b>${item.payer.displayName || item.payer.email}</b>${i18n[lang].user} <b>${item.amount} ${item.currency}</b> ${i18n[lang].paid}<br><span style="font-size:0.97em;">${i18n[lang].participantsList}: `;
+    html += (item.participants || []).map(part => {
+      const paid = item.paidStatus && item.paidStatus[part.uid];
+      const isMe = (part.email === currentUserEmail);
+      if (isMe) {
         if (paid) {
-          return `<span style='color:green;'>${part} ✅</span>`;
+          return `<span style='color:green;'>${part.displayName || part.email} ✅</span>`;
         } else {
-          return `<button data-settleid="${item.id}" data-part="${part}" class="pay-btn" style="background:#1cb5e0;color:#fff;border:none;border-radius:6px;padding:2px 8px;cursor:pointer;">완료</button> <span style='color:#e74c3c;'>${part} 미납</span>`;
+          return `<button data-settleid="${item.id}" data-partuid="${part.uid}" class="pay-btn" style="background:#1cb5e0;color:#fff;border:none;border-radius:6px;padding:2px 8px;cursor:pointer;">완료</button> <span style='color:#e74c3c;'>${part.displayName || part.email} 미납</span>`;
         }
       } else {
-        // 타인은 상태만 표시
-        return paid ? `<span style='color:green;'>${part} ✅</span>` : `<span style='color:#e74c3c;'>${part} 미납</span>`;
+        return paid ? `<span style='color:green;'>${part.displayName || part.email} ✅</span>` : `<span style='color:#e74c3c;'>${part.displayName || part.email} 미납</span>`;
       }
     }).join(', ');
     html += `</span>`;
     div.innerHTML = html;
     historyList.appendChild(div);
   });
-  // 버튼 이벤트 바인딩
   document.querySelectorAll('.pay-btn').forEach(btn => {
     btn.addEventListener('click', async e => {
       const settleId = btn.getAttribute('data-settleid');
-      const part = btn.getAttribute('data-part');
+      const partUid = btn.getAttribute('data-partuid');
       try {
-        await updateSettlementPaid(settleId, part, true);
+        await updateSettlementPaid(settleId, partUid, true);
       } catch (err) {
         alert('상태 업데이트 실패: ' + err.message);
       }
@@ -289,23 +287,30 @@ function renderHistory() {
 if (form) {
   form.addEventListener('submit', async e => {
     e.preventDefault();
-    const payer = document.getElementById('payer').value.trim();
+    const payerUid = allUsers.find(u => u.email === currentUserEmail)?.uid;
+    const payerEmail = currentUserEmail;
+    const payerDisplayName = allUsers.find(u => u.email === currentUserEmail)?.displayName || currentUserEmail;
     const amount = document.getElementById('amount').value.trim();
     const currency = document.getElementById('currency').value;
     const place = document.getElementById('place').value.trim();
     const date = document.getElementById('date').value;
-    let participants = Array.from(document.querySelectorAll('.participant-check:checked')).map(chk => chk.value);
-    // 본인 이메일이 반드시 포함되도록 보장
-    if (!participants.includes(currentUserEmail)) participants.push(currentUserEmail);
-    if (!payer) return alert('지불자 정보가 없습니다.');
+    let participantUids = Array.from(document.querySelectorAll('.participant-check:checked')).map(chk => chk.value);
+    if (!participantUids.includes(payerUid)) participantUids.push(payerUid);
+    const participants = participantUids.map(uid => {
+      const u = allUsers.find(u => u.uid === uid);
+      return { uid: u.uid, email: u.email, displayName: u.displayName };
+    });
+    // paidStatus: { [uid]: false }
+    const paidStatus = {};
+    participants.forEach(p => { paidStatus[p.uid] = false; });
+    if (!payerUid) return alert('지불자 정보가 없습니다.');
     if (!amount) return alert('금액을 입력하세요.');
     if (!currency) return alert('통화를 선택하세요.');
     if (!place) return alert('장소를 입력하세요.');
     if (!date) return alert('날짜를 입력하세요.');
     if (!participants.length) return alert('참가자를 1명 이상 선택하세요.');
-    if (!participants.every(p => allUsers.some(u => u.email === p))) return alert('참가자는 멤버 중에서만 선택 가능합니다.');
     try {
-      await addSettlement({ payer, amount, currency, place, date, participants, createdAt: Date.now() });
+      await addSettlement({ payer: { uid: payerUid, email: payerEmail, displayName: payerDisplayName }, amount, currency, place, date, participants, paidStatus, createdAt: Date.now() });
       form.reset();
       document.querySelectorAll('.currency-btn').forEach((btn, i) => btn.style.borderColor = i===1 ? '#0f75bc' : '#b3e0fc');
     } catch (e) {
