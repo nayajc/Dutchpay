@@ -86,6 +86,11 @@ onAuthStateChanged(auth, user => {
       history = arr.reverse(); // 최신순
       renderHistory();
     });
+    // 보관함(archive) 실시간 반영도 로그인 후에만 실행
+    onArchivedSettlementsChanged(arr => {
+      archiveHistory = arr.reverse();
+      renderArchiveList();
+    });
   }
 });
 
@@ -237,10 +242,6 @@ function renderSettlementResult() {
 
 let archiveHistory = [];
 const archiveList = document.getElementById('archive-list');
-onArchivedSettlementsChanged(arr => {
-  archiveHistory = arr.reverse();
-  renderArchiveList();
-});
 function renderArchiveList() {
   if (!archiveList) return;
   if (archiveHistory.length === 0) {

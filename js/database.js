@@ -38,7 +38,10 @@ export function onSettlementsChanged(cb) {
   onValue(listRef, snapshot => {
     const arr = [];
     snapshot.forEach(child => {
-      arr.push({ id: child.key, ...child.val() });
+      // archive 폴더는 제외
+      if (child.key !== 'archive') {
+        arr.push({ id: child.key, ...child.val() });
+      }
     });
     cb(arr);
   });
