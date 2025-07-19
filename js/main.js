@@ -212,7 +212,18 @@ function calculateSettlementResult() {
   return result;
 }
 
-function renderSettlementResult() {
+// 환율 정보 가져오기 (exchangerate.host)
+async function getRatesToUSD() {
+  try {
+    const res = await fetch('https://api.exchangerate.host/latest?base=USD');
+    const data = await res.json();
+    return data.rates;
+  } catch (e) {
+    return {};
+  }
+}
+
+async function renderSettlementResult() {
   const result = calculateSettlementResult();
   resultList.innerHTML = '';
   if (result.length === 0) {
@@ -222,21 +233,29 @@ function renderSettlementResult() {
   // uid → displayName/email 매핑
   const uidToName = {};
   allUsers.forEach(u => { uidToName[u.uid] = u.displayName || u.email; });
-  function getCurrency(from, to) {
-    const found = history.find(item => {
-      if (!item.paidStatus) return false;
-      const uids = Object.keys(item.paidStatus);
-      return uids.includes(from) && uids.includes(to);
-    });
-    return found ? found.currency : '';
-  }
+  // 환율 적용: 각 정산 결과를 USD로 환산
+  const rates = await getRatesToUSD();
+  // 각 사람별 USD 합산
+  const usdMap = {};
   result.forEach(r => {
-    const div = document.createElement('div');
-    div.style.marginBottom = '0.4rem';
-    const currency = getCurrency(r.from, r.to);
-    // 받아야 하는 사람 이름 : 금액 통화
-    div.innerHTML = `<b>${uidToName[r.to] || r.to}</b> : <b>${r.amount.toLocaleString(undefined, {maximumFractionDigits:2})} ${currency}</b> 받기`;
-    resultList.appendChild(div);
+    // 해당 거래의 통화 찾기
+    const currency = (() => {
+      const found = history.find(item => {
+        if (!item.paidStatus) return false;
+        const uids = Object.keys(item.paidStatus);
+        return uids.includes(r.from) && uids.includes(r.to);
+      });
+      return found ? found.currency : 'USD';
+    })();
+    let usd = parseFloat(r.amount);
+    if (currency !== 'USD' && rates[currency]) {
+      usd = usd / rates[currency];
+    }
+    const name = uidToName[r.to] || r.to;
+    usdMap[name] = (usdMap[name] || 0) + usd;
+  });
+  Object.entries(usdMap).forEach(([name, usd]) => {
+    resultList.innerHTML += `<b>${name}</b> : <b>${usd.toLocaleString(undefined, {maximumFractionDigits:2})} USD</b> 받기<br/>`;
   });
 }
 
@@ -413,8 +432,8 @@ function renderHistory() {
       }
     });
   });
-  renderSettlementResult();
   renderMyHistory();
+  renderSettlementResult(); // 비동기 호출
 }
 
 if (form) {
