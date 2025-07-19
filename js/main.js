@@ -309,7 +309,7 @@ function renderMyHistory() {
       await updateSettlementParticipants(id, newParticipants, newPaidStatus);
     });
   });
-  // 참가자 추가 이벤트 (select로 스크롤다운)
+  // 참가자 추가 이벤트 (모달 select)
   document.querySelectorAll('.add-participant-btn').forEach(btn => {
     btn.addEventListener('click', async e => {
       const id = btn.getAttribute('data-id');
@@ -317,29 +317,54 @@ function renderMyHistory() {
       if (!item) return;
       const notIn = allUsers.filter(u => !(item.participants || []).some(p => p.uid === u.uid));
       if (notIn.length === 0) return alert('추가할 수 있는 회원이 없습니다.');
-      // select로 선택
+
+      // 모달 select 생성
+      const modal = document.createElement('div');
+      modal.style.position = 'fixed';
+      modal.style.top = '0'; modal.style.left = '0'; modal.style.width = '100vw'; modal.style.height = '100vh';
+      modal.style.background = 'rgba(0,0,0,0.3)';
+      modal.style.display = 'flex'; modal.style.alignItems = 'center'; modal.style.justifyContent = 'center';
+      modal.style.zIndex = '9999';
+
       const select = document.createElement('select');
-      select.style.fontSize = '1em';
+      select.style.fontSize = '1.2em';
+      select.style.padding = '1em';
       notIn.forEach(u => {
         const opt = document.createElement('option');
         opt.value = u.uid;
         opt.textContent = u.displayName || u.email;
         select.appendChild(opt);
       });
-      const ok = confirm('참가자를 추가하시겠습니까?\n(확인 후 선택창이 나타납니다)');
-      if (!ok) return;
-      // 모달 없이 prompt 대체: select를 body에 임시로 추가
-      document.body.appendChild(select);
-      select.focus();
-      select.size = Math.min(6, notIn.length);
-      select.addEventListener('change', async () => {
+
+      const okBtn = document.createElement('button');
+      okBtn.textContent = '추가';
+      okBtn.style.marginLeft = '1em';
+      okBtn.style.fontSize = '1em';
+
+      const cancelBtn = document.createElement('button');
+      cancelBtn.textContent = '취소';
+      cancelBtn.style.marginLeft = '0.5em';
+      cancelBtn.style.fontSize = '1em';
+
+      const box = document.createElement('div');
+      box.style.background = '#fff';
+      box.style.padding = '2em';
+      box.style.borderRadius = '12px';
+      box.appendChild(select);
+      box.appendChild(okBtn);
+      box.appendChild(cancelBtn);
+      modal.appendChild(box);
+      document.body.appendChild(modal);
+
+      okBtn.onclick = async () => {
         const user = notIn.find(u => u.uid === select.value);
         if (!user) return alert('선택된 참가자가 없습니다.');
         const newParticipants = [...(item.participants || []), { uid: user.uid, email: user.email, displayName: user.displayName }];
         const newPaidStatus = { ...item.paidStatus, [user.uid]: false };
         await updateSettlementParticipants(id, newParticipants, newPaidStatus);
-        document.body.removeChild(select);
-      });
+        document.body.removeChild(modal);
+      };
+      cancelBtn.onclick = () => document.body.removeChild(modal);
     });
   });
   // 보관 버튼 이벤트
