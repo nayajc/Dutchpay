@@ -4,6 +4,64 @@ import { addSettlement, onSettlementsChanged, updateSettlementPaid } from "./dat
 
 const auth = getAuth(app);
 
+// 1. 멤버 관리
+let members = [];
+const memberForm = document.getElementById('member-form');
+const memberInput = document.getElementById('member-name');
+const memberListDiv = document.getElementById('member-list');
+function renderMemberList() {
+  memberListDiv.innerHTML = members.map((m, i) => `<span style="display:inline-block;background:#e3f2fd;color:#0f75bc;padding:0.4em 1em;border-radius:12px;font-size:1.1em;margin-right:0.5em;margin-bottom:0.3em;">${m} <button style='background:none;border:none;color:#e74c3c;font-size:1.1em;cursor:pointer;' onclick='window.removeMember(${i})'>×</button></span>`).join('');
+}
+window.removeMember = idx => { members.splice(idx,1); renderMemberList(); renderParticipantsList(); };
+if (memberForm) {
+  memberForm.addEventListener('submit', e => {
+    e.preventDefault();
+    const name = memberInput.value.trim();
+    if (!name) return;
+    if (members.includes(name)) return alert('이미 추가된 멤버입니다.');
+    members.push(name);
+    memberInput.value = '';
+    renderMemberList();
+    renderParticipantsList();
+  });
+}
+// 2. 통화 선택
+const currencyList = [
+  { code: 'USD', label: 'USD', flag: '🇺🇸' },
+  { code: 'KRW', label: 'KRW', flag: '🇰🇷' },
+  { code: 'JPY', label: 'JPY', flag: '🇯🇵' },
+  { code: 'THB', label: 'THB', flag: '🇹🇭' },
+  { code: 'MYR', label: 'MYR', flag: '🇲🇾' },
+  { code: 'TWD', label: 'TWD', flag: '🇹🇼' },
+  { code: 'SGD', label: 'SGD', flag: '🇸🇬' },
+  { code: 'VND', label: 'VND', flag: '🇻🇳' },
+];
+const currencyListDiv = document.getElementById('currency-list');
+const currencyInput = document.getElementById('currency');
+function renderCurrencyList() {
+  currencyListDiv.innerHTML = currencyList.map(c => `<button type='button' class='currency-btn' data-currency='${c.code}' style='font-size:1.3em;padding:0.5em 1.2em;border-radius:12px;border:2px solid #b3e0fc;background:#fff;margin-bottom:0.2em;cursor:pointer;display:flex;align-items:center;gap:0.5em;'><span style='font-size:1.5em;'>${c.flag}</span> <b>${c.label}</b></button>`).join('');
+  // 기본값
+  currencyInput.value = currencyList[1].code;
+}
+currencyListDiv && renderCurrencyList();
+currencyListDiv && currencyListDiv.addEventListener('click', e => {
+  if (e.target.closest('.currency-btn')) {
+    const code = e.target.closest('.currency-btn').dataset.currency;
+    currencyInput.value = code;
+    document.querySelectorAll('.currency-btn').forEach(btn => btn.style.borderColor = '#b3e0fc');
+    e.target.closest('.currency-btn').style.borderColor = '#0f75bc';
+  }
+});
+// 3. 참가자 선택
+const participantsListDiv = document.getElementById('participants-list');
+function renderParticipantsList() {
+  participantsListDiv.innerHTML = members.map(m => `<label style='font-size:1.1em;margin-right:1em;'><input type='checkbox' class='participant-check' value='${m}' style='margin-right:0.4em;'/>${m}</label>`).join('');
+}
+// 4. 지불자(본인) 자동 세팅
+function setPayer(user) {
+  document.getElementById('payer').value = user.displayName || user.email || '';
+}
+
 // 1. 인증 상태 체크 (미로그인시 index.html로 이동)
 let currentUserEmail = null;
 onAuthStateChanged(auth, user => {
@@ -12,6 +70,7 @@ onAuthStateChanged(auth, user => {
   } else {
     document.getElementById('user-info').textContent = `👤 ${user.displayName || user.email}`;
     currentUserEmail = user.email;
+    setPayer(user);
     // DB 연동: 내역 실시간 반영
     onSettlementsChanged(arr => {
       history = arr.reverse(); // 최신순
@@ -198,14 +257,16 @@ if (form) {
     const payer = document.getElementById('payer').value.trim();
     const amount = document.getElementById('amount').value.trim();
     const currency = document.getElementById('currency').value;
-    const participants = document.getElementById('participants').value.split(',').map(s => s.trim()).filter(Boolean);
-    if (!payer || !amount || !participants.length) {
-      alert(i18n[lang].alertFill);
-      return;
-    }
+    const participants = Array.from(document.querySelectorAll('.participant-check:checked')).map(chk => chk.value);
+    if (!payer) return alert('지불자 정보가 없습니다.');
+    if (!amount) return alert('금액을 입력하세요.');
+    if (!currency) return alert('통화를 선택하세요.');
+    if (!participants.length) return alert('참가자를 1명 이상 선택하세요.');
+    if (!participants.every(p => members.includes(p))) return alert('참가자는 멤버 중에서만 선택 가능합니다.');
     try {
       await addSettlement({ payer, amount, currency, participants, createdAt: Date.now() });
       form.reset();
+      document.querySelectorAll('.currency-btn').forEach((btn, i) => btn.style.borderColor = i===1 ? '#0f75bc' : '#b3e0fc');
     } catch (e) {
       alert('DB 저장 실패: ' + e.message);
     }

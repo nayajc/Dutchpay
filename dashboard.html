@@ -35,21 +35,23 @@
         <button class="logout-btn" id="lang-toggle" title="Switch Language">🇰🇷</button>
       </div>
     </div>
+    <div class="section-title">멤버 추가 <span class="emoji">👥</span></div>
+    <form id="member-form" style="display:flex;gap:0.5rem;margin-bottom:1.2rem;">
+      <input type="text" id="member-name" placeholder="멤버 이름" required style="flex:1;padding:0.7rem;font-size:1.1rem;border-radius:7px;border:1px solid #b3e0fc;" />
+      <button type="submit" class="settle-btn" style="padding:0.7rem 1.2rem;font-size:1.1rem;">추가</button>
+    </form>
+    <div id="member-list" style="margin-bottom:1.5rem;"></div>
     <div class="section-title">정산 입력 <span class="emoji">📝</span></div>
     <form class="settle-form" id="settle-form">
       <label for="payer">지불자</label>
-      <input type="text" id="payer" placeholder="이름 또는 이메일" required />
+      <input type="text" id="payer" readonly style="background:#f2f9fd;" />
       <label for="amount">금액</label>
       <input type="number" id="amount" placeholder="지불 금액" min="1" required />
       <label for="currency">통화</label>
-      <select id="currency">
-        <option value="KRW">KRW(₩)</option>
-        <option value="USD">USD($)</option>
-        <option value="JPY">JPY(¥)</option>
-        <option value="EUR">EUR(€)</option>
-      </select>
-      <label for="participants">참가자 (쉼표로 구분)</label>
-      <input type="text" id="participants" placeholder="예: 홍길동,김철수,이영희" required />
+      <div id="currency-list" style="display:flex;flex-wrap:wrap;gap:0.7rem 1.2rem;margin-bottom:0.7rem;"></div>
+      <input type="hidden" id="currency" value="KRW" />
+      <label>참가자</label>
+      <div id="participants-list" style="display:flex;flex-wrap:wrap;gap:0.7rem 1.2rem;"></div>
       <button type="submit" class="settle-btn">정산 추가</button>
     </form>
     <div class="section-title">정산 내역 <span class="emoji">📋</span></div>
