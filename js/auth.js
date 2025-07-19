@@ -41,9 +41,29 @@ if (btnEmail) {
             alert('회원가입 실패: ' + signupErr.message);
           }
         }
+      } else if (e.code === 'auth/invalid-login-credentials') {
+        alert('비밀번호가 틀렸거나 회원이 아닙니다. 회원가입을 해주세요');
+        window.location.href = 'index.html';
       } else {
         alert('이메일 로그인 실패: ' + e.message);
       }
+    }
+  });
+}
+
+const btnSignup = document.getElementById('btn-signup');
+if (btnSignup) {
+  btnSignup.addEventListener('click', async () => {
+    const email = prompt('이메일을 입력하세요:');
+    if (!email) return;
+    const pw = prompt('비밀번호를 입력하세요:');
+    if (!pw) return;
+    try {
+      await createUserWithEmailAndPassword(auth, email, pw);
+      alert('회원가입 성공!');
+      window.location.href = 'dashboard.html';
+    } catch (e) {
+      alert('회원가입 실패: ' + e.message);
     }
   });
 }
