@@ -35,6 +35,7 @@ const currencyList = [
   { code: 'TWD', label: 'TWD', flag: '🇹🇼' },
   { code: 'SGD', label: 'SGD', flag: '🇸🇬' },
   { code: 'VND', label: 'VND', flag: '🇻🇳' },
+  { code: 'AUD', label: 'AUD', flag: '🇦🇺' },
 ];
 const currencyListDiv = document.getElementById('currency-list');
 const currencyInput = document.getElementById('currency');
