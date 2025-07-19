@@ -85,7 +85,7 @@ if (btnSignup) {
 // 다국어 지원
 const i18n = {
   ko: {
-    title: 'DutchPay Splitter',
+    title: 'KK DutchPay',
     desc1: '번갈아 밥값 내기, 자동 정산!',
     desc2: '환율까지 자동 계산, 복잡한 더치페이 끝!',
     google: 'Google로 로그인',
@@ -93,7 +93,7 @@ const i18n = {
     made: 'Made by CowboyBibimbap',
   },
   en: {
-    title: 'DutchPay Splitter',
+    title: 'KK DutchPay',
     desc1: 'Take turns paying, auto split!',
     desc2: 'Even currency rates, no more Dutch headaches!',
     google: 'Login with Google',
