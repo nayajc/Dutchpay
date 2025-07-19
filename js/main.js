@@ -266,14 +266,18 @@ if (form) {
     const payer = document.getElementById('payer').value.trim();
     const amount = document.getElementById('amount').value.trim();
     const currency = document.getElementById('currency').value;
+    const place = document.getElementById('place').value.trim();
+    const date = document.getElementById('date').value;
     const participants = Array.from(document.querySelectorAll('.participant-check:checked')).map(chk => chk.value);
     if (!payer) return alert('지불자 정보가 없습니다.');
     if (!amount) return alert('금액을 입력하세요.');
     if (!currency) return alert('통화를 선택하세요.');
+    if (!place) return alert('장소를 입력하세요.');
+    if (!date) return alert('날짜를 입력하세요.');
     if (!participants.length) return alert('참가자를 1명 이상 선택하세요.');
     if (!participants.every(p => allUsers.some(u => u.email === p))) return alert('참가자는 멤버 중에서만 선택 가능합니다.');
     try {
-      await addSettlement({ payer, amount, currency, participants, createdAt: Date.now() });
+      await addSettlement({ payer, amount, currency, place, date, participants, createdAt: Date.now() });
       form.reset();
       document.querySelectorAll('.currency-btn').forEach((btn, i) => btn.style.borderColor = i===1 ? '#0f75bc' : '#b3e0fc');
     } catch (e) {
