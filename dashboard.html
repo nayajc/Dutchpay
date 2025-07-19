@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DutchPay 대시보드</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
+  <link rel="icon" href="assets/emoji/money-bag.png" />
+  <style>
+    body { font-family: 'Segoe UI', 'Noto Sans KR', Arial, sans-serif; background: #f7fbff; min-height: 100vh; }
+    .dashboard-container { max-width: 480px; margin: 0 auto; background: #fff; border-radius: 18px; box-shadow: 0 4px 24px rgba(15,117,188,0.08); padding: 2rem 1.2rem 2.5rem 1.2rem; margin-top: 2rem; }
+    .user-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.2rem; }
+    .user-info { font-size: 1.1rem; color: #0f75bc; font-weight: 500; }
+    .logout-btn { background: #e3f2fd; color: #0f75bc; border: none; border-radius: 8px; padding: 0.5rem 1rem; font-size: 1rem; cursor: pointer; transition: background 0.2s; }
+    .logout-btn:hover { background: #b3e0fc; }
+    .section-title { font-size: 1.2rem; color: #1cb5e0; margin: 1.2rem 0 0.7rem 0; font-weight: bold; }
+    .settle-form { display: flex; flex-direction: column; gap: 0.7rem; margin-bottom: 1.5rem; }
+    .settle-form input, .settle-form select { padding: 0.7rem; border-radius: 7px; border: 1px solid #b3e0fc; font-size: 1rem; }
+    .settle-form label { font-size: 0.98rem; color: #0f75bc; margin-bottom: 0.2rem; }
+    .settle-btn { background: #0f75bc; color: #fff; border: none; border-radius: 8px; padding: 0.8rem; font-size: 1.1rem; cursor: pointer; margin-top: 0.5rem; }
+    .settle-btn:hover { background: #1cb5e0; }
+    .history-list { margin-top: 1.2rem; }
+    .history-item { background: #f2f9fd; border-radius: 10px; padding: 0.8rem 1rem; margin-bottom: 0.7rem; box-shadow: 0 2px 8px rgba(28,181,224,0.06); }
+    .history-item .emoji { font-size: 1.3rem; margin-right: 0.5rem; }
+    @media (max-width: 600px) { .dashboard-container { padding: 1rem 0.3rem 1.5rem 0.3rem; } }
+  </style>
+</head>
+<body>
+  <div class="dashboard-container">
+    <div class="user-bar">
+      <div class="user-info" id="user-info">👤 ...</div>
+      <div style="display:flex;gap:0.5rem;align-items:center;">
+        <button class="logout-btn" id="btn-logout">로그아웃</button>
+        <button class="logout-btn" id="lang-toggle" title="Switch Language">🇰🇷</button>
+      </div>
+    </div>
+    <div class="section-title">정산 입력 <span class="emoji">📝</span></div>
+    <form class="settle-form" id="settle-form">
+      <label for="payer">지불자</label>
+      <input type="text" id="payer" placeholder="이름 또는 이메일" required />
+      <label for="amount">금액</label>
+      <input type="number" id="amount" placeholder="지불 금액" min="1" required />
+      <label for="currency">통화</label>
+      <select id="currency">
+        <option value="KRW">KRW(₩)</option>
+        <option value="USD">USD($)</option>
+        <option value="JPY">JPY(¥)</option>
+        <option value="EUR">EUR(€)</option>
+      </select>
+      <label for="participants">참가자 (쉼표로 구분)</label>
+      <input type="text" id="participants" placeholder="예: 홍길동,김철수,이영희" required />
+      <button type="submit" class="settle-btn">정산 추가</button>
+    </form>
+    <div class="section-title">정산 내역 <span class="emoji">📋</span></div>
+    <div class="history-list" id="history-list">
+      <!-- 정산 내역이 여기에 표시됩니다 -->
+    </div>
+  </div>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
