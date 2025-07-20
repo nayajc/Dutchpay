@@ -62,9 +62,16 @@ function renderParticipantsList() {
     return `<label style='font-size:1.1em;margin-right:1em;'><input type='checkbox' class='participant-check' value='${u.uid}' style='margin-right:0.4em;' ${isMe ? 'checked disabled' : ''}/> ${u.displayName || u.email}</label>`;
   }).join('');
 }
-// 4. 지불자(본인) 자동 세팅
+// 4. 지불자(본인) 자동 세팅 및 오늘 날짜 설정
 function setPayer(user) {
   document.getElementById('payer').value = user.displayName || user.email || '';
+  // 오늘 날짜 자동 설정 (YYYY-MM-DD 형식)
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  const todayStr = `${year}-${month}-${day}`;
+  document.getElementById('date').value = todayStr;
 }
 
 // 1. 인증 상태 체크 (미로그인시 index.html로 이동)
@@ -115,7 +122,7 @@ const historyList = document.getElementById('history-list');
 let resultSection = document.createElement('div');
 resultSection.className = 'section-title';
 resultSection.id = 'settle-result-title';
-resultSection.innerHTML = '정산 결과 <span class="emoji">💰</span>';
+resultSection.innerHTML = '오늘 정산 결과 <span class="emoji">💰</span>';
 let resultList = document.createElement('div');
 resultList.id = 'settle-result-list';
 resultList.style.marginTop = '0.7rem';
@@ -127,7 +134,7 @@ dashboard.appendChild(resultList);
 let paySection = document.createElement('div');
 paySection.className = 'section-title';
 paySection.id = 'pay-result-title';
-paySection.innerHTML = '내가 내야 할 내역 💸';
+paySection.innerHTML = '오늘 내가 내야 할 내역 💸';
 let payList = document.createElement('div');
 payList.id = 'pay-result-list';
 payList.style.marginTop = '0.7rem';
@@ -189,26 +196,53 @@ if (langBtn) {
 }
 
 function calculateSettlementResult() {
-  // 참가자별 balance 계산 (미납만)
+  // 참가자별 balance 계산 (미납만) - 오늘 날짜 기준
   const balance = {};
-  history.forEach(item => {
+  console.log('=== 정산 계산 시작 (오늘 기준) ===');
+  
+  // 오늘 날짜 구하기
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  const todayStr = `${year}-${month}-${day}`;
+  
+  console.log('오늘 날짜:', todayStr);
+  console.log('현재 history:', history);
+  
+  // 오늘 날짜의 정산만 필터링
+  const todayHistory = history.filter(item => item.date === todayStr);
+  console.log('오늘 정산 내역:', todayHistory);
+  
+  todayHistory.forEach(item => {
     const amount = parseFloat(item.amount);
     if (!amount || !item.participants || !item.paidStatus) return;
     const n = item.participants.length;
     const share = amount / n;
+    console.log(`정산: ${item.payer.displayName || item.payer.email}이 ${amount} 지불, 참가자 ${n}명, 1인당 ${share}`);
+    
     item.participants.forEach(part => {
       if (!item.paidStatus[part.uid]) {
         // 미납자만 계산
         balance[part.uid] = (balance[part.uid] || 0) - share;
+        console.log(`미납자 ${part.displayName || part.email}: balance = ${balance[part.uid]}`);
       }
     });
     // 지불자는 전체 금액만큼 받음
     balance[item.payer.uid] = (balance[item.payer.uid] || 0) + amount;
+    console.log(`지불자 ${item.payer.displayName || item.payer.email}: balance = ${balance[item.payer.uid]}`);
   });
+  
+  console.log('최종 balance:', balance);
+  
   // 정산 매칭(누가 누구에게 얼마)
   // 단순히 balance > 0(받을 사람), < 0(줄 사람)로 분리
   const toReceive = Object.entries(balance).filter(([_, v]) => v > 0).sort((a,b)=>b[1]-a[1]);
   const toPay = Object.entries(balance).filter(([_, v]) => v < 0).sort((a,b)=>a[1]-b[1]);
+  
+  console.log('받을 사람들:', toReceive);
+  console.log('줄 사람들:', toPay);
+  
   const result = [];
   let i=0, j=0;
   while(i < toReceive.length && j < toPay.length) {
@@ -217,12 +251,15 @@ function calculateSettlementResult() {
     const amt = Math.min(recvAmt, -payAmt);
     if (amt > 0.01) {
       result.push({ from: pay, to: recv, amount: amt });
+      console.log(`정산 결과: ${pay} → ${recv}: ${amt}`);
       toReceive[i][1] -= amt;
       toPay[j][1] += amt;
     }
     if (toReceive[i][1] < 0.01) i++;
     if (toPay[j][1] > -0.01) j++;
   }
+  
+  console.log('최종 정산 결과:', result);
   return result;
 }
 
@@ -241,7 +278,7 @@ async function renderSettlementResult() {
   const result = calculateSettlementResult();
   resultList.innerHTML = '';
   if (result.length === 0) {
-    resultList.innerHTML = '<span style="color:#888;">모든 미납 정산이 완료되었습니다!</span>';
+    resultList.innerHTML = '<span style="color:#888;">오늘 모든 미납 정산이 완료되었습니다!</span>';
     return;
   }
   // uid → displayName/email 매핑
@@ -287,7 +324,7 @@ async function renderPayResult() {
   const myUid = allUsers.find(u => u.email === currentUserEmail)?.uid;
   const myPays = result.filter(r => r.from === myUid);
   if (myPays.length === 0) {
-    payList.innerHTML = '<span style="color:#888;">내야 할 내역이 없습니다.</span>';
+    payList.innerHTML = '<span style="color:#888;">오늘 내야 할 내역이 없습니다.</span>';
     return;
   }
   myPays.forEach(r => {
