@@ -80,6 +80,9 @@ onAuthStateChanged(auth, user => {
     getAllUsers(users => {
       allUsers = users;
       renderParticipantsList();
+      // 사용자 정보 로드 후 정산 결과와 내야 할 내역 렌더링
+      renderSettlementResult();
+      renderPayResult();
     });
     // DB 연동: 내역 실시간 반영
     onSettlementsChanged(arr => {
