@@ -108,7 +108,7 @@ function setLang(newLang) {
   document.querySelector('.desc').innerHTML = `<span class="emoji">🍽️👫🌏</span><br/>${i18n[lang].desc1}<br/><small>${i18n[lang].desc2}</small>`;
   document.getElementById('btn-google').innerHTML = `<span class="emoji" style="margin-right:0.6em;">🔑</span> ${i18n[lang].google}`;
   document.getElementById('btn-email').innerHTML = `<span class="emoji" style="margin-right:0.6em;">📧</span> ${i18n[lang].email}`;
-  document.querySelector('.footer').innerHTML = `<span class="emoji">🌐</span> ${i18n[lang].made}<br/><small>© 2024 DutchPay Splitter</small>`;
+  document.querySelector('.footer').innerHTML = `${i18n[lang].made}<br/><small>© 2024 Copyright reserved by JCS</small>`;
   document.getElementById('lang-toggle').textContent = lang === 'ko' ? '🇺🇸' : '🇰🇷';
 }
 const langBtn = document.getElementById('lang-toggle');
