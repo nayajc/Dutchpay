@@ -118,3 +118,43 @@ if (langBtn) {
   });
 }
 setLang('ko');
+
+function calculateSettlementResult() {
+  const balance = {};
+  // 오늘 날짜 기준 필터링 등은 기존대로 유지
+
+  history.forEach(item => {
+    const amount = parseFloat(item.amount);
+    if (!amount || !item.participants || !item.paidStatus) return;
+    const n = item.participants.length;
+    const share = amount / n;
+
+    // 참가자별 balance
+    item.participants.forEach(part => {
+      if (!item.paidStatus[part.uid]) {
+        balance[part.uid] = (balance[part.uid] || 0) - share;
+      }
+    });
+    // 지불자 balance
+    balance[item.payer.uid] = (balance[item.payer.uid] || 0) + amount;
+  });
+
+  // 매칭
+  const toReceive = Object.entries(balance).filter(([_, v]) => v > 0).sort((a,b)=>b[1]-a[1]);
+  const toPay = Object.entries(balance).filter(([_, v]) => v < 0).sort((a,b)=>a[1]-b[1]);
+  const result = [];
+  let i=0, j=0;
+  while(i < toReceive.length && j < toPay.length) {
+    const [recv, recvAmt] = toReceive[i];
+    const [pay, payAmt] = toPay[j];
+    const amt = Math.min(recvAmt, -payAmt);
+    if (amt > 0.01) {
+      result.push({ from: pay, to: recv, amount: amt });
+      toReceive[i][1] -= amt;
+      toPay[j][1] += amt;
+    }
+    if (toReceive[i][1] < 0.01) i++;
+    if (toPay[j][1] > -0.01) j++;
+  }
+  return result;
+}
